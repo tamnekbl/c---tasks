@@ -13,8 +13,8 @@ vector<string> createDeck() {
     vector<string> suits = {"Пик", "Черв", "Крест", "Бубен"};
     vector<string> deck;
 
-    for (const auto& rank : ranks) {
-        for (const auto& suit : suits) {
+    for (auto rank : ranks) {
+        for (auto suit : suits) {
             deck.push_back(rank + '-' + suit);
         }
     }
@@ -23,9 +23,9 @@ vector<string> createDeck() {
 }
 
 void dealCards(const std::vector<std::string>& deck, std::vector<std::vector<std::string>>& players) {
-    size_t playerCount = players.size();
-    for (size_t i = 0; i < deck.size(); ++i) {
-        players[i % 6].push_back(deck[i]);
+    int playerCount = players.size();
+    for (int i = 0; i < deck.size(); ++i) {
+        players[i % playerCount].push_back(deck[i]);
     }
 }
 
@@ -44,13 +44,11 @@ int main()
     // Раздача карт игрокам
     dealCards(deck, players);
 
-    for (size_t i = 0; i < players.size(); ++i) {
-        for (const auto& card : players[i]) {
-            cout << card << " ";
+    for (int i = 0; i < players.size(); ++i) {
+        for (int j = 0; j < 6; ++j) {
+            cout << players[i][j] << " ";
         }
         cout << endl << endl;
     }
-    
-    
-    
+
 }
