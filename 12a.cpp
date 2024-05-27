@@ -10,40 +10,19 @@ struct Employee {
     std::string name; 
     std::mutex m;
 };
-/*//
+
+
 void call_employee(Employee & e1, Employee & e2) {
     while (true) {
         std::cout << e1.name << " берёт трубку и набирает " << std::endl;
-        e1.m.lock();
+        std::lock_guard<std::mutex> lock1(e1.m);
         Sleep(10); 
         std::cout << e2.name << " берёт трубку и отвечает " << std::endl;
-        e2.m.lock();
-
+        std::lock_guard<std::mutex> lock2(e2.m);
         std::cout << "Разговор..." << std::endl;
         Sleep(5000);
-
-        e2.m.unlock();
-        e1.m.unlock();
-        Sleep(10);
     }
 }
-//*/
-//
-void call_employee(Employee & e1, Employee & e2) {
-    while (true) {
-        std::lock(e1.m, e2.m);
-        std::cout << e1.name << " берёт трубку и набирает " << std::endl;
-        Sleep(10); 
-        std::cout << e2.name << " берёт трубку и отвечает " << std::endl;
-        std::cout << "Разговор..." << std::endl;
-        Sleep(5000);
-        e2.m.unlock();
-        e1.m.unlock();
-        Sleep(10);
-    }
-}
-//*/
-
 int main() {
     SetConsoleOutputCP(CP_UTF8);
     Employee a, b;
@@ -53,6 +32,7 @@ int main() {
     std::thread th2(call_employee, std::ref(b), std::ref(a));
     th1.join();
     th2.join();
+    
 
     return 0;
 }
