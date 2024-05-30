@@ -19,6 +19,12 @@ class Employee {
 
 
 
+
+void Guest(int& id)
+{
+
+}
+/*
 void call_employee(Employee & e1, Employee & e2) {
     std::lock(e1.m, e2.m);
     std::cout << e1.name << " берёт трубку и набирает абоненту " <<e2.name<< std::endl;
@@ -52,12 +58,12 @@ void Operator (std::vector<Employee*> & emps)
 int main() {
     SetConsoleOutputCP(CP_UTF8);
     std::string names [] = {"Alice", "Bob","John", "Sam", "Anna"};
-    std::vector<Employee*> emps;
+    std::vector<std::mutex*> emps;
     std::vector<std::thread> threads;
     for (int i = 0; i<5; ++i){
-        emps.push_back(new Employee (names[i]));
+        emps.push_back(new std::mutex);
     } 
-    for (int i = 0; i<20; i++){
+    for (int i = 0; i<5; i++){
         threads.emplace_back(Operator, std::ref(emps));
     }
     for (auto& thread : threads) {
