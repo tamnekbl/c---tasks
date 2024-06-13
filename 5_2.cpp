@@ -46,7 +46,9 @@ void Waiter(int id) {
     cv.notify_all();
 
     std::unique_lock<std::mutex> lock2(rightMutex);
-    cv.wait(lock2, [&]{return !forks[(id + 4) % 5];});
+    while (forks[(id + 4) % 5]){
+        
+    }
     forks[(id + 4) % 5] = true;
     lock2.unlock();
     Delay();
@@ -69,7 +71,7 @@ void PutForks(int id)
 {
     forks[id] = false;
     forks[(id + 4) % 5] = false;
-    state[(id + 4) % 5] = false;
+    state[id] = false;
     cv.notify_all();
     {
         
