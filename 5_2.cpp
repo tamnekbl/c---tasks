@@ -47,7 +47,6 @@ void Waiter(int id) {
 
     std::unique_lock<std::mutex> lock2(rightMutex);
     while (forks[(id + 4) % 5]){
-        
     }
     forks[(id + 4) % 5] = true;
     lock2.unlock();
