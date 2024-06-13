@@ -7,7 +7,8 @@
 #include <windows.h>
 #include <random>
 
-std::vector<std::mutex*> forkEvents;
+std::vector<bool> forks (5, false);
+std::mutex forkMutex;
 std::mutex coutMutex; // Мьютекс для синхронизации вывода
 
 void Delay()
@@ -32,35 +33,36 @@ void Lunch()
     Delay();
 }
 
-bool Waiter(int id)
-{
-    if (forkEvents[id]->try_lock())
-    {
-        if (forkEvents[(id + 4) % 5]->try_lock())
-        {
-            return true;
-        }
-        else
-        {
-            forkEvents[id]->unlock();
-        }
+bool Waiter(int id) {
+    std::lock_guard<std::mutex> lock(forkMutex);
+    if (!forks[id] && !forks[(id + 4) % 5]) {
+        forks[id] = true;
+        forks[(id + 4) % 5] = true;
+        Delay();
+        return true;
     }
-    Delay();
     return false;
 }
 
 void TakeForks(int id)
 {
-    std::lock_guard<std::mutex> lock(coutMutex);
-    std::cout << "Философ " << id << ": Я взял левую вилку" << std::endl;
-    std::cout << "Философ " << id << ": Я взял правую вилку и кушаю" << std::endl;
+    while (!Waiter(id)) {
+        
+    }
+    {
+        std::lock_guard<std::mutex> lock(coutMutex);
+        std::cout << "Философ " << id << ": Я взял левую вилку" << std::endl;
+        std::cout << "Философ " << id << ": Я взял правую вилку и кушаю" << std::endl;
+        
+    }
+
 }
 
 void PutForks(int id)
 {
-    forkEvents[id]->unlock();
-    forkEvents[(id + 4) % 5]->unlock();
     {
+        forks[id] = false;
+        forks[(id + 4) % 5] = false;
         std::lock_guard<std::mutex> lock(coutMutex);
         std::cout << "Философ " << id << ": Я закончил кушать и положил вилки" << std::endl;
     }
@@ -71,10 +73,6 @@ void Guest(int id)
     while (true)
     {
         Thinking(id);
-        while (!Waiter(id))
-        {
-            // Ожидание, пока вилки не станут доступны
-        }
         TakeForks(id);      
         Lunch();
         PutForks(id);
@@ -84,17 +82,11 @@ void Guest(int id)
 int main() {
     SetConsoleOutputCP(CP_UTF8);
     std::vector<std::thread> threads;
-    for (int i = 0; i < 5; ++i) {
-        forkEvents.push_back(new std::mutex);
-    }
     for (int i = 0; i < 5; i++) {
         threads.emplace_back(Guest, i);
     }
     for (auto& thread : threads) {
         thread.join();
-    }
-    for (auto m : forkEvents) {
-        delete m;
     }
     return 0;
 }
