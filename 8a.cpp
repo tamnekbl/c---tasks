@@ -25,6 +25,6 @@ void sum3(int &x, int &y)
 int main(){
     int a = 10;
     int b = -4;
-    sum2(&a, &b);
+    sum3(a, b);
     cout<<a;
 }
