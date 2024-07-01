@@ -1,1 +1,0 @@
-        std::vector<std::shared_ptr<Meeting>> meetings;
