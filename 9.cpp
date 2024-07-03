@@ -3,10 +3,10 @@
 #include <string>
 
 int main() {
-    std::string log_line = "~[ 9088]; 2022-10-31; 13:23:53.334; DEBUG; 0;  /AVDetector.1";
+    std::string log_line = "~#[1]; 2024-02-26; 14:42:10.222; WARN; 0; Service pack string: ";
 
     // Регулярное выражение для разбора строки
-    std::regex log_pattern(R"~(\~\[\s*(\d+)\]; (\d{4}-\d{2}-\d{2}); \d{2}:\d{2}:\d{2}\.\d{3}; (TRACE|INFO|DEBUG|WARN|ERROR); \d; (.+))~");
+    std::regex log_pattern(R"~(\~#?\[\s*(\d+)\]; (\d{4}-\d{2}-\d{2}); \d{2}:\d{2}:\d{2}\.\d{3}; (TRACE|INFO|DEBUG|WARN|ERROR); \d; (.+))~");
 
     std::smatch match;
     if (std::regex_match(log_line, match, log_pattern)) {

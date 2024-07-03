@@ -35,12 +35,13 @@ class ParserStatistics {
 
 void ParserStatistics::Parsing(const std::vector<std::string> & lines)
 {
-    std::regex reg("(~\\[\\s*\\d+\\]); (\\d{4}-\\d{2}-\\d{2}); (\\d{2}:\\d{2}:\\d{2}\\.\\d{3}); (TRACE|INFO|DEBUG|WARN|ERROR); (\\d); (.*)\\r");
+    std::regex reg("(~#?\\[\\s*\\d+\\]); (\\d{4}-\\d{2}-\\d{2}); (\\d{2}:\\d{2}:\\d{2}\\.\\d{3}); (TRACE|INFO|DEBUG|WARN|ERROR); (\\d); (.*)\\r");
     std::string first_date = "";
     std::string last_date = "";
 
     for (std::string line : lines)
     {
+        line = line.length() > 6000? line.substr(0, 6800):line;
         std::smatch results;
         if (std::regex_match(line, results, reg))
         {
@@ -76,32 +77,13 @@ std::vector<fs::path> GetAllFiles(const fs::path& dirName)
     if (entry.exists())
     {
         for (auto const& dir_entry : fs::recursive_directory_iterator(dirName))
-            if (dir_entry.is_directory()==false)
+            if ((dir_entry.path().extension() == ".log"))
             {
-                if (dir_entry.path().extension() == ".zip" || dir_entry.path().extension() == ".rar" ||
-                    dir_entry.path().extension() == ".7z" || dir_entry.path().extension() == ".tar") {
-                    continue;
-                }
                 result.push_back(dir_entry.path());
             } 
         return result;
     }
     return std::vector<fs::path>();
-}
-
-std::vector<char> read_file(const std::string& filename)
-{
-    std::ifstream infile(filename, std::ios::binary);
-    if (!infile) {
-        throw std::runtime_error("Failed to open file");
-    }
-    infile.seekg(0, std::ios::end); 
-    const size_t file_size_in_byte = infile.tellg();
-    std::vector<char> data(file_size_in_byte);
-    infile.seekg(0, std::ios::beg);
-    infile.read(data.data(), file_size_in_byte);
-
-    return data;
 }
 
 std::vector<char> read_file_chunk(const std::string& filename)
@@ -154,9 +136,9 @@ std::vector<std::string> make_lines(const std::vector<char>& data)
     return stringList; 
 }
 
-void LineCounter(fs::path f, ParserStatistics& pst)
+void LineCounter(const fs::path& f, ParserStatistics& pst)
 {
-    auto data = make_lines(read_file(f.string()));
+    auto data = make_lines(read_file_chunk(f.string()));
     pst.Parsing(data);
 }
 
@@ -166,13 +148,12 @@ int main()
     std::vector<std::thread> pool;
     ParserStatistics stats;
     SetConsoleOutputCP(CP_UTF8);
-    fs::path dirName = "C:\\log";
+    fs::path dirName = "C:\\log\\Report\\Logs\\Archive";
     auto start = std::chrono::high_resolution_clock::now();
     auto files = GetAllFiles(dirName);
-    for (auto& f:files)
-        std::cout<<f<<"\n";
-
+    
     for (auto const& f:files){
+        std::cout<<f<<"\n";
         pool.emplace_back(LineCounter, f, std::ref(stats));
     }
     for (auto& thread: pool)

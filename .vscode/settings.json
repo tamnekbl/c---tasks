@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.cpp": "cpp",
         "array": "cpp",
         "atomic": "cpp",
         "bit": "cpp",
@@ -80,9 +81,16 @@
         "list": "cpp",
         "regex": "cpp",
         "filesystem": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp",
+        "future": "cpp",
+        "queue": "cpp",
+        "ranges": "cpp",
+        "xhash": "cpp"
     },
     "editor.experimental.asyncTokenizationVerification": true,
     "editor.experimentalInlineEdit.enabled": false,
-    "editor.formatOnPaste": false
+    "editor.formatOnPaste": false,
+    "C_Cpp.errorSquiggles": "disabled"
 }
