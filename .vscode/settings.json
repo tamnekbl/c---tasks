@@ -87,7 +87,9 @@
         "future": "cpp",
         "queue": "cpp",
         "ranges": "cpp",
-        "xhash": "cpp"
+        "xhash": "cpp",
+        "bitset": "cpp",
+        "codecvt": "cpp"
     },
     "editor.experimental.asyncTokenizationVerification": true,
     "editor.experimentalInlineEdit.enabled": false,

@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <atomic>
 #include <thread>
@@ -27,6 +28,18 @@ std::vector<fs::path> GetAllFiles(const fs::path& dirName)
         return result;
     }
     return std::vector<fs::path>();
+}
+
+std::string read_file(const std::string& filename)
+{
+    std::string s, line;
+    std::ifstream infile(filename, std::ios::binary);
+    while(std::getline(infile, line)){ 
+        lines_count++; 
+        s+=line;
+    }
+    infile.close();
+    return s;
 }
 
 std::vector<char> read_file_chunk(const std::string& filename)
@@ -81,8 +94,7 @@ std::vector<std::string> make_lines(const std::vector<char>& data)
 
 void LineCounter(const fs::path& f)
 {
-    auto data = make_lines(read_file_chunk(f.string()));
-    lines_count+=data.size();
+    read_file(f.string());
 }
 
 int main()
@@ -91,7 +103,7 @@ int main()
     std::vector<std::thread> pool;
 
     SetConsoleOutputCP(CP_UTF8);
-    fs::path dirName = "C:\\log\\Report\\Logs\\Archive";
+    fs::path dirName = "C:\\Logs";
     auto start = std::chrono::high_resolution_clock::now();
     auto files = GetAllFiles(dirName);
 
