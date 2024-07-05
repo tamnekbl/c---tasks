@@ -1,4 +1,4 @@
-/*#include <filesystem>
+#include <filesystem>
 #include <windows.h>
 #include <vector>
 #include <string>
@@ -7,222 +7,163 @@
 #include <algorithm>
 #include <atomic>
 #include <thread>
+#include <regex>
 #include <mutex>
-#include <queue>
-#include <condition_variable>
-#include <future>
 
 namespace fs = std::filesystem;
 
-std::atomic_int lines_count{0};
-
-// Пул потоков
-class ThreadPool {
-public:
-    ThreadPool(size_t numThreads);
-    ~ThreadPool();
-
-    template<class F>
-    auto enqueue(F&& f) -> std::future<typename std::result_of<F()>::type>;
-
-private:
-    std::vector<std::thread> workers;
-    std::queue<std::function<void()>> tasks;
-
-    std::mutex queue_mutex;
-    std::condition_variable condition;
-    bool stop;
+class ParserStatistics {
+    private:
+        std::string period = "";
+        std::atomic_size_t count_lines = 0,
+               count_trace = 0,
+               count_info = 0,
+               count_debug = 0,
+               count_warn = 0,
+               count_error = 0;
+    public:
+        void Parsing(const std::vector<std::string>& lines);
+        std::string GetPeriod() { return period; };
+        size_t GetLines() { return count_lines; };
+        size_t GetTrace() { return count_trace; };
+        size_t GetInfo()  { return count_info;  };
+        size_t GetDebug() { return count_debug; };
+        size_t GetWarn()  { return count_warn;  };
+        size_t GetError() { return count_error; };
+        
 };
 
-ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
-    for (size_t i = 0; i < numThreads; ++i) {
-        workers.emplace_back([this] {
-            for (;;) {
-                std::function<void()> task;
+void ParserStatistics::Parsing(const std::vector<std::string> & lines)
+{
+    std::regex reg("(~#?\\[\\s*\\d+\\]); (\\d{4}-\\d{2}-\\d{2}); (\\d{2}:\\d{2}:\\d{2}\\.\\d{3}); (TRACE|INFO|DEBUG|WARN|ERROR); (\\d); (.*)\\r");
+    std::string first_date = "";
+    std::string last_date = "";
 
-                {
-                    std::unique_lock<std::mutex> lock(this->queue_mutex);
-                    this->condition.wait(lock, [this] { return this->stop || !this->tasks.empty(); });
-                    if (this->stop && this->tasks.empty())
-                        return;
-                    task = std::move(this->tasks.front());
-                    this->tasks.pop();
-                }
-
-                task();
-            }
-        });
-    }
-}
-
-ThreadPool::~ThreadPool() {
+    for (std::string line : lines)
     {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-        stop = true;
-    }
-    condition.notify_all();
-    for (std::thread &worker : workers)
-        worker.join();
-}
-
-template<class F>
-auto ThreadPool::enqueue(F&& f) -> std::future<typename std::result_of<F()>::type> {
-    using return_type = typename std::result_of<F()>::type;
-
-    auto task = std::make_shared<std::packaged_task<return_type()>>(std::forward<F>(f));
-
-    std::future<return_type> res = task->get_future();
-    {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-
-        if (stop)
-            throw std::runtime_error("enqueue on stopped ThreadPool");
-
-        tasks.emplace([task]() { (*task)(); });
-    }
-    condition.notify_one();
-    return res;
-}
-
-std::vector<fs::path> GetAllFiles(const fs::path& dirName) {
-    std::vector<fs::path> result;
-    fs::directory_entry entry{dirName};
-    if (entry.exists()) {
-        for (const auto& dir_entry : fs::recursive_directory_iterator(dirName)) {
-            if (!dir_entry.is_directory()) {
-                // Игнорируем архивы по расширению
-                if (dir_entry.path().extension() == ".zip" || dir_entry.path().extension() == ".rar" ||
-                    dir_entry.path().extension() == ".7z" || dir_entry.path().extension() == ".tar") {
-                    continue;
-                }
-                result.push_back(dir_entry.path());
-            }
+        line = line.length() > 6000? line.substr(0, 6800):line;
+        std::smatch results;
+        if (std::regex_match(line, results, reg))
+        {
+            if (first_date == "") first_date = results[2].str() + " " + results[3].str();
+            last_date = results[2].str() + " " + results[3].str();
+                 if (results[4] == "INFO" ) count_info++;
+            else if (results[4] == "DEBUG") count_debug++;
+            else if (results[4] == "TRACE") count_trace++;
+            else if (results[4] == "WARN" ) count_warn++;
+            else if (results[4] == "ERROR") count_error++;
+            count_lines++;
         }
     }
-    return result;
+    period = first_date + " --- " + last_date;
 }
 
-void ProcessChunk(const std::vector<char>& data, size_t start, size_t end) {
-    size_t lineCount = 0;
-    std::string tmp;
+void PrintStatistics(ParserStatistics &stat) {
+    std::cout << "=========================STATISTICS=========================\n";
+    std::cout << "\tPERIOD:         \t" << stat.GetPeriod() << "\n";
+    std::cout << "\tNUMBER OF LINES:\t" << stat.GetLines()  << "\n";
+    std::cout << "\tNUMBER OF TRACE:\t" << stat.GetTrace()  << "\n"; 
+    std::cout << "\tNUMBER OF INFO: \t" << stat.GetInfo()   << "\n";
+    std::cout << "\tNUMBER OF DEBUG:\t" << stat.GetDebug()  << "\n";
+    std::cout << "\tNUMBER OF WARN: \t" << stat.GetWarn()   << "\n";
+    std::cout << "\tNUMBER OF ERROR:\t" << stat.GetError()  << "\n"; 
+    std::cout << "============================================================\n";
+}
 
-    for (size_t i = start; i < end; ++i) {
-        if (data[i] != '\n') {
-            tmp += data[i];
-        } else {
-            ++lineCount;
+std::vector<fs::path> GetAllFiles(const fs::path& dirName)
+{
+    std::vector<fs::path> result;
+    fs::directory_entry entry{dirName};
+    if (entry.exists())
+    {
+        for (auto const& dir_entry : fs::recursive_directory_iterator(dirName))
+            if ((dir_entry.path().extension() == ".log"))
+            {
+                result.push_back(dir_entry.path());
+            } 
+        return result;
+    }
+    return std::vector<fs::path>();
+}
+
+std::vector<char> read_file_chunk(const std::string& filename)
+{
+    std::ifstream infile(filename, std::ios::binary);
+    if (!infile) {
+        throw std::runtime_error("Failed to open file");
+    }
+    infile.seekg(0, std::ios::end);
+    const size_t file_size_in_byte = infile.tellg();
+    std::vector<char> data(file_size_in_byte);
+    infile.seekg(0, std::ios::beg);
+
+    const short int chunk_size = 4096;
+    size_t chunks = file_size_in_byte / chunk_size;
+    size_t chunk_rest = file_size_in_byte % chunk_size;
+    for (size_t i = 0; i < chunks; ++i)
+    {
+        infile.seekg(i*chunk_size, std::ios::beg);
+        infile.read(data.data()+(i * chunk_size), chunk_size);
+    }
+    
+    infile.read(data.data()+(chunks * chunk_size), chunk_rest);
+    return data;
+}
+
+std::vector<std::string> make_lines(const std::vector<char>& data)
+{
+    std::vector<std::string> stringList;
+    stringList.reserve(std::count(data.begin(), data.end(), '\n') + 1);
+
+    std::string tmp;
+    for (char ch : data)
+    {
+        if (ch != '\n')
+        {
+            tmp += ch;
+        }
+        else
+        {
+            stringList.push_back(tmp);
             tmp.clear();
         }
     }
-
-    // Обрабатываем последнюю строку, если она не завершена новой строкой
-    if (!tmp.empty()) {
-        ++lineCount;
+    if (!tmp.empty())
+    {
+        stringList.emplace_back(tmp);
     }
 
-    lines_count += lineCount;
+    return stringList; 
 }
 
-void LineCounter(const fs::path& filePath) {
-    const size_t chunkSize = 4096;
-    std::ifstream file(filePath, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Failed to open file: " + filePath.string());
-    }
-
-    std::vector<char> buffer(chunkSize);
-    while (file) {
-        file.read(buffer.data(), chunkSize);
-        std::streamsize bytesRead = file.gcount();
-        if (bytesRead > 0) {
-            ProcessChunk(buffer, 0, static_cast<size_t>(bytesRead));
-        }
-    }
+void LineCounter(const fs::path& f, ParserStatistics& pst)
+{
+    auto data = make_lines(read_file_chunk(f.string()));
+    pst.Parsing(data);
 }
 
-int main() {
+int main()
+{
+
+    std::vector<std::thread> pool;
+    ParserStatistics stats;
     SetConsoleOutputCP(CP_UTF8);
     fs::path dirName = "C:\\log";
     auto start = std::chrono::high_resolution_clock::now();
-
     auto files = GetAllFiles(dirName);
-
-    const size_t numThreads = std::thread::hardware_concurrency();
-    ThreadPool pool(numThreads);
-
-    std::vector<std::future<void>> results;
-    for (const auto& file : files) {
-        results.emplace_back(pool.enqueue([file] { LineCounter(file); }));
+    
+    for (auto const& f:files){
+        std::cout<<f<<"\n";
+        pool.emplace_back(LineCounter, f, std::ref(stats));
     }
-
-    for (auto &&result : results) {
-        result.get();
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-
-    std::cout << "Время выполнения: " << elapsed.count() << " секунд" << std::endl;
-    std::cout << "Общее количество строк: " << lines_count.load() << std::endl;
-
-    return 0;
-}*/
-
-#include <iostream>
-#include <vector>
-#include <string>
-#include <filesystem>
-#include <fstream>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <chrono>
-
-namespace fs = std::filesystem;
-
-std::atomic<int> count(0);
-std::mutex mtx;
-
-std::vector<fs::path> GetAllFiles(const fs::path& dirName) {
-    std::vector<fs::path> fileList;
-    if (fs::exists(dirName) && fs::is_directory(dirName)) {
-        for (const auto& entry : fs::recursive_directory_iterator(dirName)) {
-            if (fs::is_regular_file(entry.path())) {
-                fileList.push_back(entry.path());
-            }
-        }
-    }
-    return fileList;
-}
-
-void LinesCounter(const fs::path& filePath) {
-    std::ifstream file(filePath);
-    std::string line;
-    while (std::getline(file, line)) {
-        count++;
-    }
-}
-
-int main() {
-    const std::string dirName = "C:\\Log";
-    std::vector<std::thread> threads;
-
-    auto start = std::chrono::high_resolution_clock::now();
-
-    std::vector<fs::path> files = GetAllFiles(dirName);
-    for (const auto& file : files) {
-        threads.emplace_back(LinesCounter, file);
-    }
-
-    for (auto& thread : threads) {
+    for (auto& thread: pool)
         thread.join();
-    }
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
-
+    PrintStatistics(stats);
     std::cout << "Время выполнения: " << elapsed.count() << " секунд" << std::endl;
-    std::cout << "Общее количество строк: " << count.load() << std::endl;
-
+    
+       
     return 0;
 }

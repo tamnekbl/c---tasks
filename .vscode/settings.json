@@ -89,7 +89,14 @@
         "ranges": "cpp",
         "xhash": "cpp",
         "bitset": "cpp",
-        "codecvt": "cpp"
+        "codecvt": "cpp",
+        "complex": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "source_location": "cpp",
+        "strstream": "cpp",
+        "typeindex": "cpp",
+        "xtree": "cpp"
     },
     "editor.experimental.asyncTokenizationVerification": true,
     "editor.experimentalInlineEdit.enabled": false,

@@ -14,16 +14,18 @@ namespace fs = std::filesystem;
 
 class ParserStatistics {
     private:
-        std::string period = "";
-        std::atomic_size_t count_lines = 0,
+        std::string first_date = "9999-00-00 14:42:10.222",
+                    last_date = "0000-00-00 14:42:10.222";
+        size_t count_lines = 0,
                count_trace = 0,
                count_info = 0,
                count_debug = 0,
                count_warn = 0,
                count_error = 0;
+        std::mutex M;
     public:
         void Parsing(const std::vector<std::string>& lines);
-        std::string GetPeriod() { return period; };
+        std::string GetPeriod() { return first_date + " --- " + last_date; };
         size_t GetLines() { return count_lines; };
         size_t GetTrace() { return count_trace; };
         size_t GetInfo()  { return count_info;  };
@@ -35,9 +37,7 @@ class ParserStatistics {
 
 void ParserStatistics::Parsing(const std::vector<std::string> & lines)
 {
-    std::regex reg("(~#?\\[\\s*\\d+\\]); (\\d{4}-\\d{2}-\\d{2}); (\\d{2}:\\d{2}:\\d{2}\\.\\d{3}); (TRACE|INFO|DEBUG|WARN|ERROR); (\\d); (.*)\\r");
-    std::string first_date = "";
-    std::string last_date = "";
+    std::regex reg("(~#?\\[\\s*\\d+\\]); (\\d{4}-\\d{2}-\\d{2}); (\\d{2}:\\d{2}:\\d{2}\\.\\d{3}); (TRACE|INFO|DEBUG|WARN|ERROR); (\\d); (.*)");
 
     for (std::string line : lines)
     {
@@ -45,8 +45,10 @@ void ParserStatistics::Parsing(const std::vector<std::string> & lines)
         std::smatch results;
         if (std::regex_match(line, results, reg))
         {
-            if (first_date == "") first_date = results[2].str() + " " + results[3].str();
-            last_date = results[2].str() + " " + results[3].str();
+            std::lock_guard<std::mutex> lock(M);
+            std::string date = results[2].str() + " " + results[3].str();
+            if (first_date > date) first_date = date;
+            if (last_date < date) last_date = date;
                  if (results[4] == "INFO" ) count_info++;
             else if (results[4] == "DEBUG") count_debug++;
             else if (results[4] == "TRACE") count_trace++;
@@ -55,7 +57,6 @@ void ParserStatistics::Parsing(const std::vector<std::string> & lines)
             count_lines++;
         }
     }
-    period = first_date + " --- " + last_date;
 }
 
 void PrintStatistics(ParserStatistics &stat) {
@@ -86,59 +87,21 @@ std::vector<fs::path> GetAllFiles(const fs::path& dirName)
     return std::vector<fs::path>();
 }
 
-std::vector<char> read_file_chunk(const std::string& filename)
+std::vector<std::string> read_file(const std::string& filename)
 {
-    std::ifstream infile(filename, std::ios::binary);
-    if (!infile) {
-        throw std::runtime_error("Failed to open file");
+    std::vector<std::string> res;
+    std::string line;
+    std::ifstream infile(filename);
+    while(std::getline(infile, line)){ 
+        res.push_back(line);
     }
-    infile.seekg(0, std::ios::end);
-    const size_t file_size_in_byte = infile.tellg();
-    std::vector<char> data(file_size_in_byte);
-    infile.seekg(0, std::ios::beg);
-
-    const short int chunk_size = 4096;
-    size_t chunks = file_size_in_byte / chunk_size;
-    size_t chunk_rest = file_size_in_byte % chunk_size;
-    for (size_t i = 0; i < chunks; ++i)
-    {
-        infile.seekg(i*chunk_size, std::ios::beg);
-        infile.read(data.data()+(i * chunk_size), chunk_size);
-    }
-    
-    infile.read(data.data()+(chunks * chunk_size), chunk_rest);
-    return data;
-}
-
-std::vector<std::string> make_lines(const std::vector<char>& data)
-{
-    std::vector<std::string> stringList;
-    stringList.reserve(std::count(data.begin(), data.end(), '\n') + 1);
-
-    std::string tmp;
-    for (char ch : data)
-    {
-        if (ch != '\n')
-        {
-            tmp += ch;
-        }
-        else
-        {
-            stringList.push_back(tmp);
-            tmp.clear();
-        }
-    }
-    if (!tmp.empty())
-    {
-        stringList.emplace_back(tmp);
-    }
-
-    return stringList; 
+    infile.close();
+    return res;
 }
 
 void LineCounter(const fs::path& f, ParserStatistics& pst)
 {
-    auto data = make_lines(read_file_chunk(f.string()));
+    auto data = read_file(f.string());
     pst.Parsing(data);
 }
 
@@ -148,7 +111,7 @@ int main()
     std::vector<std::thread> pool;
     ParserStatistics stats;
     SetConsoleOutputCP(CP_UTF8);
-    fs::path dirName = "C:\\log\\Report\\Logs\\Archive";
+    fs::path dirName = "c:\\log";
     auto start = std::chrono::high_resolution_clock::now();
     auto files = GetAllFiles(dirName);
     

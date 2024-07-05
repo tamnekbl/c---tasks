@@ -3,7 +3,7 @@
 #include <string>
 
 int main() {
-    std::string log_line = "~#[1]; 2024-02-26; 14:42:10.222; WARN; 0; Service pack string: ";
+    std::string log_line = "~[19640]; 2024-03-13; 20:08:01.038; ERROR; 0; Change log level to DEBUG";
 
     // Регулярное выражение для разбора строки
     std::regex log_pattern(R"~(\~#?\[\s*(\d+)\]; (\d{4}-\d{2}-\d{2}); \d{2}:\d{2}:\d{2}\.\d{3}; (TRACE|INFO|DEBUG|WARN|ERROR); \d; (.+))~");
